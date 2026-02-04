@@ -34,13 +34,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Admin Login</h1>
-        
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="max-w-md w-full p-8 bg-gray-900 border border-gray-800 rounded-lg">
+        <h1 className="text-2xl font-bold text-center mb-6 text-white">
+          <span className="text-cyan-400">Admin</span> Login
+        </h1>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-400">
               Password
             </label>
             <input
@@ -48,19 +50,19 @@ export default function LoginPage() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               required
             />
           </div>
-          
+
           {error && (
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-rose-400 text-sm">{error}</p>
           )}
-          
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full py-2 px-4 rounded-md font-medium text-gray-900 bg-cyan-400 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>

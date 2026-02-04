@@ -100,16 +100,18 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-4xl mx-auto py-12 px-4">
         <header className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin</h1>
-            <p className="text-gray-600 mt-1">Upload and manage HTML files</p>
+            <h1 className="text-3xl font-bold text-white">
+              <span className="text-cyan-400">Admin</span>
+            </h1>
+            <p className="text-gray-400 mt-1">Upload and manage HTML files</p>
           </div>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
           >
             Logout
           </button>
@@ -120,8 +122,10 @@ export default function AdminPage() {
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragLeave={() => setDragActive(false)}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center mb-8 transition-colors ${
-            dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+          className={`border-2 border-dashed rounded-lg p-8 text-center mb-8 transition-all ${
+            dragActive
+              ? 'border-cyan-400 bg-cyan-400/10 shadow-lg shadow-cyan-400/20'
+              : 'border-gray-700 bg-gray-900 hover:border-gray-600'
           }`}
         >
           <input
@@ -136,9 +140,9 @@ export default function AdminPage() {
             htmlFor="file-input"
             className="cursor-pointer"
           >
-            <div className="text-gray-600">
+            <div className={dragActive ? 'text-cyan-400' : 'text-gray-400'}>
               {uploading ? (
-                'Uploading...'
+                <span className="text-fuchsia-400">Uploading...</span>
               ) : (
                 <>
                   <p className="text-lg font-medium">Drop HTML file here</p>
@@ -150,32 +154,32 @@ export default function AdminPage() {
         </div>
 
         {message && (
-          <div className={`mb-4 p-3 rounded ${
+          <div className={`mb-4 p-3 rounded border ${
             message.startsWith('Uploaded') || message.startsWith('Deleted')
-              ? 'bg-green-100 text-green-700'
-              : 'bg-red-100 text-red-700'
+              ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
+              : 'bg-rose-500/10 border-rose-500/50 text-rose-400'
           }`}>
             {message}
           </div>
         )}
 
         {/* File List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-800">
+            <thead className="bg-gray-900/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase">
                   Size
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-right text-xs font-medium text-cyan-400 uppercase">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-800">
               {files.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
@@ -184,24 +188,24 @@ export default function AdminPage() {
                 </tr>
               ) : (
                 files.map((file) => (
-                  <tr key={file.url}>
+                  <tr key={file.url} className="hover:bg-gray-800/50 transition-colors">
                     <td className="px-6 py-4">
                       <a
                         href={`/view/${file.name.replace(/\.html?$/, '')}`}
                         target="_blank"
                         rel="noopener"
-                        className="text-blue-600 hover:underline"
+                        className="text-fuchsia-400 hover:text-fuchsia-300 hover:underline font-medium"
                       >
                         {file.name}
                       </a>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-400">
                       {(file.size / 1024).toFixed(1)} KB
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleDelete(file.url, file.name)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-rose-400 hover:text-rose-300 text-sm font-medium transition-colors"
                       >
                         Delete
                       </button>
