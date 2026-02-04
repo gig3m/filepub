@@ -186,9 +186,9 @@ export default function AdminPage() {
                 files.map((file) => (
                   <tr key={file.url}>
                     <td className="px-6 py-4">
-                      <a 
-                        href={file.url} 
-                        target="_blank" 
+                      <a
+                        href={`/view/${file.name.replace(/\.html?$/, '')}`}
+                        target="_blank"
                         rel="noopener"
                         className="text-blue-600 hover:underline"
                       >
