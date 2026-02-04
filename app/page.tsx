@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { list } from '@vercel/blob';
 
+// Force dynamic rendering to always show fresh file list
+export const dynamic = 'force-dynamic';
+
 interface FileInfo {
   name: string;
   category: string | null;
