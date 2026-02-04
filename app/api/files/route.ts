@@ -5,15 +5,25 @@ import { isAuthenticated } from '@/lib/auth';
 export async function GET() {
   try {
     const { blobs } = await list();
-    
-    const files = blobs.map(blob => ({
-      name: blob.pathname,
-      url: blob.url,
-      size: blob.size,
-      uploadedAt: blob.uploadedAt,
-    }));
-    
-    return NextResponse.json({ files });
+
+    const files = blobs.map(blob => {
+      const parts = blob.pathname.split('/');
+      const category = parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+      const name = parts[parts.length - 1];
+      return {
+        name,
+        category,
+        pathname: blob.pathname,
+        url: blob.url,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt,
+      };
+    });
+
+    // Extract unique categories
+    const categories = Array.from(new Set(files.map(f => f.category).filter(Boolean))) as string[];
+
+    return NextResponse.json({ files, categories });
   } catch (error) {
     console.error('Error listing files:', error);
     return NextResponse.json({ error: 'Failed to list files' }, { status: 500 });

@@ -20,9 +20,13 @@ export async function POST(request: NextRequest) {
     if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
       return NextResponse.json({ error: 'Only HTML files are allowed' }, { status: 400 });
     }
-    
+
+    // Get optional category
+    const category = formData.get('category') as string | null;
+    const pathname = category ? `${category}/${file.name}` : file.name;
+
     // Upload to Vercel Blob
-    const blob = await put(file.name, file, {
+    const blob = await put(pathname, file, {
       access: 'public',
       addRandomSuffix: false, // Keep original filename
     });
