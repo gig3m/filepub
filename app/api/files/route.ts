@@ -1,4 +1,4 @@
-import { list, del } from '@vercel/blob';
+import { list, del, put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/auth';
 
@@ -35,7 +35,7 @@ export async function DELETE(request: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  
+
   try {
     const { url } = await request.json();
     await del(url);
@@ -43,5 +43,46 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Error deleting file:', error);
     return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  // Only allow rename/move if authenticated
+  if (!(await isAuthenticated())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { url, newPathname } = await request.json();
+
+    if (!url || !newPathname) {
+      return NextResponse.json({ error: 'Missing url or newPathname' }, { status: 400 });
+    }
+
+    // Fetch the existing file content
+    const response = await fetch(url);
+    if (!response.ok) {
+      return NextResponse.json({ error: 'Failed to fetch original file' }, { status: 404 });
+    }
+    const content = await response.blob();
+
+    // Upload to new path
+    const newBlob = await put(newPathname, content, {
+      access: 'public',
+      addRandomSuffix: false,
+      contentType: 'text/html',
+    });
+
+    // Delete the old file
+    await del(url);
+
+    return NextResponse.json({
+      success: true,
+      pathname: newBlob.pathname,
+      url: newBlob.url,
+    });
+  } catch (error) {
+    console.error('Error renaming file:', error);
+    return NextResponse.json({ error: 'Failed to rename file' }, { status: 500 });
   }
 }

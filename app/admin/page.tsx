@@ -12,6 +12,12 @@ interface FileInfo {
   uploadedAt: string;
 }
 
+interface EditingFile {
+  file: FileInfo;
+  newName: string;
+  newCategory: string;
+}
+
 export default function AdminPage() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -20,6 +26,8 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const loadFiles = useCallback(async () => {
@@ -99,6 +107,50 @@ export default function AdminPage() {
     }
   }
 
+  async function handleRename() {
+    if (!editingFile) return;
+
+    const { file, newName, newCategory } = editingFile;
+    const trimmedName = newName.trim();
+
+    if (!trimmedName) {
+      setMessage('Name cannot be empty');
+      return;
+    }
+
+    // Ensure .html extension
+    const finalName = trimmedName.endsWith('.html') || trimmedName.endsWith('.htm')
+      ? trimmedName
+      : `${trimmedName}.html`;
+
+    const newPathname = newCategory ? `${newCategory}/${finalName}` : finalName;
+
+    // Check if nothing changed
+    if (newPathname === file.pathname) {
+      setEditingFile(null);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/files', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: file.url, newPathname }),
+      });
+
+      if (res.ok) {
+        setMessage(`Renamed: ${file.pathname} → ${newPathname}`);
+        setEditingFile(null);
+        loadFiles();
+      } else {
+        const data = await res.json();
+        setMessage(data.error || 'Rename failed');
+      }
+    } catch {
+      setMessage('Rename failed');
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/logout', { method: 'POST' });
     router.push('/login');
@@ -107,7 +159,7 @@ export default function AdminPage() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragActive(false);
-    
+
     const file = e.dataTransfer.files[0];
     if (file) handleUpload(file);
   }
@@ -116,6 +168,44 @@ export default function AdminPage() {
     const file = e.target.files?.[0];
     if (file) handleUpload(file);
   }
+
+  function startEditing(file: FileInfo) {
+    setEditingFile({
+      file,
+      newName: file.name.replace(/\.html?$/, ''),
+      newCategory: file.category || '',
+    });
+  }
+
+  function toggleCategory(category: string) {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }
+
+  // Group files by category for tree view
+  const groupedFiles = files.reduce((acc, file) => {
+    const cat = file.category || '__uncategorized__';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(file);
+    return acc;
+  }, {} as Record<string, FileInfo[]>);
+
+  // Sort categories: uncategorized first, then alphabetically
+  const sortedCategories = Object.keys(groupedFiles).sort((a, b) => {
+    if (a === '__uncategorized__') return -1;
+    if (b === '__uncategorized__') return 1;
+    return a.localeCompare(b);
+  });
+
+  // All categories for the move dropdown (including empty for uncategorized)
+  const allCategoryOptions = ['', ...categories];
 
   return (
     <div className="min-h-screen">
@@ -139,7 +229,7 @@ export default function AdminPage() {
         <div className="mb-4 flex gap-4 items-end">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-400 mb-2">
-              Category (optional)
+              Upload to category (optional)
             </label>
             <select
               value={selectedCategory}
@@ -217,7 +307,7 @@ export default function AdminPage() {
 
         {message && (
           <div className={`mb-4 p-3 rounded border ${
-            message.startsWith('Uploaded') || message.startsWith('Deleted')
+            message.startsWith('Uploaded') || message.startsWith('Deleted') || message.startsWith('Renamed')
               ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
               : 'bg-rose-500/10 border-rose-500/50 text-rose-400'
           }`}>
@@ -225,64 +315,132 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* File List */}
-        <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-800">
-            <thead className="bg-gray-900/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase">
+        {/* Edit Modal */}
+        {editingFile && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-white mb-4">Edit File</h3>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Filename
+                </label>
+                <input
+                  type="text"
+                  value={editingFile.newName}
+                  onChange={(e) => setEditingFile({ ...editingFile, newName: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-cyan-400 focus:outline-none"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">.html extension will be added if missing</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
                   Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-cyan-400 uppercase">
-                  Size
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-cyan-400 uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {files.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                    No files uploaded yet
-                  </td>
-                </tr>
-              ) : (
-                files.map((file) => (
-                  <tr key={file.url} className="hover:bg-gray-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <a
-                        href={`/view/${file.pathname.replace(/\.html?$/, '')}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="text-fuchsia-400 hover:text-fuchsia-300 hover:underline font-medium"
-                      >
-                        {file.name}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      {file.category || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleDelete(file.url, file.pathname)}
-                        className="text-rose-400 hover:text-rose-300 text-sm font-medium transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </label>
+                <select
+                  value={editingFile.newCategory}
+                  onChange={(e) => setEditingFile({ ...editingFile, newCategory: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-cyan-400 focus:outline-none"
+                >
+                  <option value="">Uncategorized</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setEditingFile(null)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRename}
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-medium rounded-lg transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Tree */}
+        <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+          {files.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-500">
+              No files uploaded yet
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800">
+              {sortedCategories.map((category) => {
+                const categoryFiles = groupedFiles[category];
+                const displayName = category === '__uncategorized__' ? 'Uncategorized' : category;
+                const isCollapsed = collapsedCategories.has(category);
+
+                return (
+                  <div key={category}>
+                    {/* Category Header */}
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className="w-full px-4 py-3 flex items-center gap-2 bg-gray-900/50 hover:bg-gray-800/50 transition-colors text-left"
+                    >
+                      <span className={`text-cyan-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}>
+                        ▶
+                      </span>
+                      <span className="text-cyan-400 font-medium">{displayName}</span>
+                      <span className="text-gray-500 text-sm">({categoryFiles.length})</span>
+                    </button>
+
+                    {/* Files in Category */}
+                    {!isCollapsed && (
+                      <div className="divide-y divide-gray-800/50">
+                        {categoryFiles.map((file) => (
+                          <div
+                            key={file.url}
+                            className="pl-10 pr-4 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-gray-600">📄</span>
+                              <a
+                                href={`/view/${file.pathname.replace(/\.html?$/, '')}`}
+                                target="_blank"
+                                rel="noopener"
+                                className="text-fuchsia-400 hover:text-fuchsia-300 hover:underline font-medium truncate"
+                              >
+                                {file.name}
+                              </a>
+                              <span className="text-gray-500 text-sm whitespace-nowrap">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <button
+                                onClick={() => startEditing(file)}
+                                className="text-gray-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(file.url, file.pathname)}
+                                className="text-gray-400 hover:text-rose-400 text-sm font-medium transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
